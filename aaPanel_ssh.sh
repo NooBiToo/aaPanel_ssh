@@ -1,14 +1,14 @@
 #!/bin/bash
 
 #+----------------ГЕНЕРАЦИЯ ЛОГА-----------------------+OK"
-SCRIPT=$(basename $0)
-LOG=$(echo $SCRIPT.log | sed s/'.sh'/'.log'/g)
+SCRIPT=$(basename "$0")
+LOG="${SCRIPT%.sh}.log"
 exec &> >(tee -a "$LOG")
 echo "[$(date)] ==== Начало выполнения..."
 #+----------------ГЕНЕРАЦИЯ ЛОГА-----------------------+OK"
 
 Principal() {
-	cd /tmp/
+	cd /tmp/ || exit 1
 	clear
 	dir="Текущая директория      : $(pwd)"
 	hostname="Имя хоста          : $(hostname --fqdn)"
@@ -32,21 +32,21 @@ Principal() {
 	echo "| https://github.com/NooBiToo/aaPanel_ssh          |"
 	echo "+--------------------------------------------------+"
 	echo
-	echo $dir
+	echo "$dir"
 	echo "+--------------------------------------------------+"
-	echo $hostname
+	echo "$hostname"
 	echo "+--------------------------------------------------+"
-	echo $ip
+	echo "$ip"
 	echo "+--------------------------------------------------+"
-	echo $versaoso
+	echo "$versaoso"
 	echo "+--------------------------------------------------+"
-	echo $release
+	echo "$release"
 	echo "+--------------------------------------------------+"
-	echo $codename
+	echo "$codename"
 	echo "+--------------------------------------------------+"
-	echo $kernel
+	echo "$kernel"
 	echo "+--------------------------------------------------+"
-	echo $arquitetura
+	echo "$arquitetura"
 	echo "+--------------------------------------------------+"
 	echo
 	echo
@@ -61,14 +61,14 @@ Principal() {
 	echo
 	echo
 	echo -n "Введите желаемую опцию => "
-	read opcao
+	read -r opcao
 	echo
 	case $opcao in
 	1) cu ;;
 	2) ru ;;
 	3) exit ;;
 	*)
-		"Неизвестная опция."
+		echo "Неизвестная опция."
 		echo
 		Principal
 		;;
@@ -76,25 +76,26 @@ Principal() {
 }
 
 cu() {
-
 	echo -n "Введите имя пользователя...: "
-	read NEW_USER_NAME
+	read -r NEW_USER_NAME
 	echo -n "Введите сайт/домен........: "
-	read DOMAIN
+	read -r DOMAIN
 
-	export NEW_GROUP_NAME=${NEW_USER_NAME}
-	export HOME_DIR="/home"
-	export HOME_AAP="/www/wwwroot"
-	export USER_WEB="www"
-	export GROUP_WEB="www"
+	NEW_GROUP_NAME=${NEW_USER_NAME}
+	HOME_DIR="/home"
+	HOME_AAP="/www/wwwroot"
+	USER_WEB="www"
+	GROUP_WEB="www"
 	#++++++++++++++++++++++++++++++++++++++++++++
 
 	echo
 	echo "Настройка SSH..."
-	echo "" >>/etc/ssh/sshd_config
-	echo "Match Group ${NEW_GROUP_NAME}" >>/etc/ssh/sshd_config
-	echo "   ChrootDirectory ${HOME_DIR}/${NEW_USER_NAME}" >>/etc/ssh/sshd_config
-	echo "   AuthorizedKeysFile ${HOME_DIR}/${NEW_USER_NAME}/.ssh/authorized_keys" >>/etc/ssh/sshd_config
+	{
+		echo ""
+		echo "Match Group ${NEW_GROUP_NAME}"
+		echo "   ChrootDirectory ${HOME_DIR}/${NEW_USER_NAME}"
+		echo "   AuthorizedKeysFile ${HOME_DIR}/${NEW_USER_NAME}/.ssh/authorized_keys"
+	} >>/etc/ssh/sshd_config
 	echo "+-------------------------------------------------+OK"
 
 	echo
@@ -123,23 +124,18 @@ cu() {
 
 	echo
 	echo "Добавление в fstab..."
-	# Создание точек монтирования, если их нет
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}/proc
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}/dev
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}${HOME_AAP}/${DOMAIN}
-	# Проверка существования специальных устройств
-	if [ ! -e "/www/wwwroot/doka" ]; then
-		echo "Специальное устройство /www/wwwroot/doka не существует. Создаю путь."
-		mkdir -p /www/wwwroot/doka
-	fi
-	# Добавление записей в fstab
-	echo "" >>/etc/fstab
-	echo "#${NEW_USER_NAME}" >>/etc/fstab
-	echo "none ${HOME_DIR}/${NEW_USER_NAME}/proc proc defaults 0 0" >>/etc/fstab
-	echo "/dev ${HOME_DIR}/${NEW_USER_NAME}/dev none bind 0 0" >>/etc/fstab
-	echo "${HOME_AAP}/${DOMAIN} ${HOME_DIR}/${NEW_USER_NAME}${HOME_AAP}/${DOMAIN} none bind 0 0" >>/etc/fstab
+	[ ! -e "/www/wwwroot/doka" ] && mkdir -p /www/wwwroot/doka
+	{
+		echo ""
+		echo "#${NEW_USER_NAME}"
+		echo "none ${HOME_DIR}/${NEW_USER_NAME}/proc proc defaults 0 0"
+		echo "/dev ${HOME_DIR}/${NEW_USER_NAME}/dev none bind 0 0"
+		echo "${HOME_AAP}/${DOMAIN} ${HOME_DIR}/${NEW_USER_NAME}${HOME_AAP}/${DOMAIN} none bind 0 0"
+	} >>/etc/fstab
 
-	# Применение изменений
 	mount -a
 	echo "+-------------------------------------------------+OK"
 
@@ -148,35 +144,27 @@ cu() {
 	echo "Настройка прав доступа к папке aaPanel..."
 	chown ${USER_WEB}:${GROUP_WEB} ${HOME_DIR}/${NEW_USER_NAME}${HOME_AAP}/${DOMAIN} -R 2>/dev/null
 	chmod 775 ${HOME_DIR}/${NEW_USER_NAME}${HOME_AAP}/${DOMAIN} -R 2>/dev/null
-	export NEW_WEB_ID=$(id -u ${USER_WEB})
-	export NEW_WEB_GROUP_ID=$(id -g ${GROUP_WEB})
-	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'useradd -u '${NEW_WEB_ID}' '${USER_WEB}' -s/sbin/nologin' 2>/dev/null
+	NEW_WEB_ID=$(id -u ${USER_WEB})
+	NEW_WEB_GROUP_ID=$(id -g ${GROUP_WEB})
+	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'useradd -u '${NEW_WEB_ID}' '${USER_WEB}' -s /sbin/nologin' 2>/dev/null
 	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'groupadd -g '${NEW_WEB_GROUP_ID}' '${GROUP_WEB}'' 2>/dev/null
 	echo "+-------------------------------------------------+OK"
 
 	echo
 	echo "Заключение пользователя в группу..."
-	export NEW_USER_ID=$(id -u ${NEW_USER_NAME})
-	export NEW_USER_GROUP_ID=$(id -g ${NEW_GROUP_NAME})
-	# Создание пользователя в chroot окружении
+	NEW_USER_ID=$(id -u ${NEW_USER_NAME})
+	NEW_USER_GROUP_ID=$(id -g ${NEW_GROUP_NAME})
 	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'useradd -u '${NEW_USER_ID}' '${NEW_USER_NAME}'' 2>/dev/null
-	# Создание группы в chroot окружении
 	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'groupadd -g '${NEW_USER_GROUP_ID}' '${NEW_GROUP_NAME}'' 2>/dev/null
-	# Добавление пользователя в группу в chroot окружении
 	chroot ${HOME_DIR}/${NEW_USER_NAME} /bin/bash -c 'usermod -aG '${GROUP_WEB}' '${NEW_USER_NAME}'' 2>/dev/null
-	# Исправление создания символической ссылки
 	ln -s ${HOME_AAP}/${DOMAIN} ${HOME_DIR}/${NEW_USER_NAME}/${DOMAIN}
 	echo "+-------------------------------------------------+OK"
 
 	echo
 	echo "Настройка SSH ключа..."
-	# Создание директории .ssh для нового пользователя
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}/.ssh
-	# Генерация SSH ключей
 	ssh-keygen -f ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa -t ed25519 -C "${NEW_USER_NAME}"
-	# Копирование публичного ключа в authorized_keys
 	cp -f ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa.pub ${HOME_DIR}/${NEW_USER_NAME}/.ssh/authorized_keys
-	# Установка владельца и прав на директорию .ssh и файлы внутри неё
 	chown -R ${NEW_USER_NAME}:${NEW_USER_NAME} ${HOME_DIR}/${NEW_USER_NAME}/.ssh
 	chmod 700 ${HOME_DIR}/${NEW_USER_NAME}/.ssh
 	chmod 600 ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa
@@ -189,13 +177,14 @@ cu() {
 
 	echo
 	echo "Добавление DNS для пользователя..."
-	# Создание директории etc, если она не существует
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}/etc
-	# Добавление DNS серверов
-	echo "nameserver 1.1.1.1" >>${HOME_DIR}/${NEW_USER_NAME}/etc/resolv.conf
-	echo "nameserver 8.8.8.8" >>${HOME_DIR}/${NEW_USER_NAME}/etc/resolv.conf
-	echo "nameserver 9.9.9.9" >>${HOME_DIR}/${NEW_USER_NAME}/etc/resolv.conf
+	{
+		echo "nameserver 1.1.1.1"
+		echo "nameserver 8.8.8.8"
+		echo "nameserver 9.9.9.9"
+	} >>${HOME_DIR}/${NEW_USER_NAME}/etc/resolv.conf
 	echo "+-------------------------------------------------+OK"
+
 	echo
 	echo "Пользователь --> "${NEW_USER_NAME}""
 	echo "Группа       --> "${NEW_GROUP_NAME}""
@@ -206,11 +195,11 @@ cu() {
 	echo "Нажмите любую клавишу для продолжения..."
 	read msg
 	Principal
-}
+	}
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+	#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
-ru() {
+	ru() {
 
 	echo -n "Введите имя пользователя...: "
 	read NEW_USER_NAME
@@ -263,7 +252,7 @@ ru() {
 	echo "Нажмите любую клавишу, чтобы продолжить..."
 	read msg
 	Principal
-}
+	}
 
 Principal
 
