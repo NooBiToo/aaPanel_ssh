@@ -163,7 +163,7 @@ cu() {
 	echo
 	echo "Настройка SSH ключа..."
 	mkdir -p ${HOME_DIR}/${NEW_USER_NAME}/.ssh
-	ssh-keygen -f ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa -t ed25519 -C "${NEW_USER_NAME}"
+	ssh-keygen -f ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa -C "${NEW_USER_NAME}"
 	cp -f ${HOME_DIR}/${NEW_USER_NAME}/.ssh/id_rsa.pub ${HOME_DIR}/${NEW_USER_NAME}/.ssh/authorized_keys
 	chown -R ${NEW_USER_NAME}:${NEW_USER_NAME} ${HOME_DIR}/${NEW_USER_NAME}/.ssh
 	chmod 700 ${HOME_DIR}/${NEW_USER_NAME}/.ssh
